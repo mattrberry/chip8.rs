@@ -1,5 +1,5 @@
 [package]
-name = "chip-8_rust"
+name = "chip8"
 version = "0.1.0"
 authors = ["Matthew Berry <me@mattrb.com>"]
 edition = "2018"
