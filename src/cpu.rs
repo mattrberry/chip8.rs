@@ -1,5 +1,8 @@
 use rand::prelude::*;
 
+use crate::display;
+use display::Display;
+
 const PC: u16 = 0x200;
 const FONTSET: [u8; 80] = [
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -25,30 +28,28 @@ pub struct Cpu {
     v: [u8; 16],
     i: u16,
     pc: u16,
-    stack: Vec<u16>, // not enforcing stack size of 16
+    stack: Vec<u16>, // not enforcing stack size of 16,
+    display: Display,
 }
 
 impl Cpu {
-    pub fn new(rom: Vec<u8>) -> Cpu {
+    pub fn new(rom: Vec<u8>, display: Display) -> Cpu {
         let mut memory = [0u8; 4096];
         memory[..FONTSET.len()].clone_from_slice(&FONTSET);
         memory[PC as usize..PC as usize + rom.len()].clone_from_slice(&rom);
-        println!("ROM: {:?}", rom);
-        println!("memory size: {}", memory.len());
         Cpu {
             memory: memory,
             v: [0; 16],
             i: 0,
             pc: PC,
             stack: Vec::<u16>::new(),
+            display: display,
         }
     }
 
-    pub fn run(&mut self) {
-        loop {
-            let opcode = self.read_opcode();
-            self.process_opcode(opcode);
-        }
+    pub fn cycle(&mut self) {
+        let opcode = self.read_opcode();
+        self.process_opcode(opcode);
     }
 
     fn read_u8(&mut self) -> u8 {
@@ -62,7 +63,6 @@ impl Cpu {
     }
 
     fn process_opcode(&mut self, opcode: u16) {
-        println!("pc: {:#X}, opcode: {:#X}", self.pc, opcode);
         let op_1 = (opcode & 0xF000) >> 12;
         let op_2 = (opcode & 0x0F00) >> 8;
         let op_3 = (opcode & 0x00F0) >> 4;
@@ -72,7 +72,7 @@ impl Cpu {
         let nnn = opcode & 0x0FFF;
 
         match (op_1, op_2, op_3, op_4) {
-            (0x0, 0x0, 0xE, 0x0) => (), // clear the display
+            (0x0, 0x0, 0xE, 0x0) => self.display.clear(),
             (0x0, 0x0, 0xE, 0xE) => self.pc = self.stack.pop().unwrap(),
             (0x1, _, _, _) => self.pc = nnn,
             (0x2, _, _, _) => {
@@ -143,7 +143,13 @@ impl Cpu {
                 let rand: u8 = random();
                 self.v[x as usize] = rand & nn;
             }
-            (0xD, x @ _, _, _) => (),     // draw sprite
+            (0xD, x @ _, y @ _, n @ _) => {
+                self.v[0xF] = self.display.add_sprite(
+                    self.v[x as usize],
+                    self.v[y as usize],
+                    &self.memory[self.i as usize..self.i as usize + n as usize],
+                )
+            }
             (0xE, x @ _, 0x9, 0xE) => (), // skip next op if key pressed
             (0xE, x @ _, 0xA, 0x1) => (), // skip next op if key not pressed
             (0xF, x @ _, 0x0, 0x7) => (), // load delay timer to v[x]
@@ -159,8 +165,12 @@ impl Cpu {
             }
             (0xF, x @ _, 0x5, 0x5) => {
                 self.memory[self.i as usize..=self.i as usize + x as usize]
-                    .clone_from_slice(&self.v[..=x as usize + 1]);
-            },
+                    .clone_from_slice(&self.v[..=x as usize]);
+            }
+            (0xF, x @ _, 0x6, 0x5) => {
+                self.v[..=x as usize]
+                    .clone_from_slice(&self.memory[self.i as usize..=self.i as usize + x as usize]);
+            }
             _ => panic!("Unimplemented opcode: {:#X}", opcode),
         }
     }
