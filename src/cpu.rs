@@ -1,7 +1,10 @@
 use rand::prelude::*;
 
 use crate::display;
+use crate::keyboard;
+
 use display::Display;
+use keyboard::Keyboard;
 
 const PC: u16 = 0x200;
 const FONTSET: [u8; 80] = [
@@ -30,10 +33,11 @@ pub struct Cpu {
     pc: u16,
     stack: Vec<u16>, // not enforcing stack size of 16,
     display: Display,
+    keyboard: Keyboard,
 }
 
 impl Cpu {
-    pub fn new(rom: Vec<u8>, display: Display) -> Cpu {
+    pub fn new(rom: Vec<u8>, display: Display, keyboard: Keyboard) -> Cpu {
         let mut memory = [0u8; 4096];
         memory[..FONTSET.len()].clone_from_slice(&FONTSET);
         memory[PC as usize..PC as usize + rom.len()].clone_from_slice(&rom);
@@ -44,10 +48,12 @@ impl Cpu {
             pc: PC,
             stack: Vec::<u16>::new(),
             display: display,
+            keyboard: keyboard,
         }
     }
 
     pub fn cycle(&mut self) {
+        self.keyboard.pump_events();
         let opcode = self.read_opcode();
         self.process_opcode(opcode);
     }
@@ -150,8 +156,16 @@ impl Cpu {
                     &self.memory[self.i as usize..self.i as usize + n as usize],
                 )
             }
-            (0xE, x @ _, 0x9, 0xE) => (), // skip next op if key pressed
-            (0xE, x @ _, 0xA, 0x1) => (), // skip next op if key not pressed
+            (0xE, x @ _, 0x9, 0xE) => {
+                if self.keyboard.is_key_pressed(self.v[x as usize]) {
+                    self.pc += 2
+                }
+            }
+            (0xE, x @ _, 0xA, 0x1) => {
+                if self.keyboard.is_key_pressed(self.v[x as usize]) {
+                    self.pc += 2
+                }
+            }
             (0xF, x @ _, 0x0, 0x7) => (), // load delay timer to v[x]
             (0xF, x @ _, 0x0, 0xA) => (), // wait for keypress then load to v[x]
             (0xF, x @ _, 0x1, 0x5) => (), // store v[x] to delay timer
