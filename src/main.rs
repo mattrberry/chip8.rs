@@ -1,7 +1,6 @@
 extern crate sdl2;
 
-use std::env;
-use std::fs;
+use std::{env, fs, thread, time};
 
 mod cpu;
 mod display;
@@ -32,5 +31,6 @@ fn main() {
     let mut cpu = Cpu::new(rom, display, keyboard);
     loop {
         cpu.cycle();
+        thread::sleep(time::Duration::from_millis(2));
     }
 }
