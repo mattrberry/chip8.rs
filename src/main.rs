@@ -1,6 +1,8 @@
 extern crate sdl2;
 
 use std::{env, fs, thread, time};
+use std::os::raw::c_int;
+use std::slice;
 
 mod cpu;
 mod display;
@@ -12,6 +14,12 @@ pub mod emscripten;
 use cpu::Cpu;
 use display::Display;
 use keyboard::Keyboard;
+
+#[no_mangle]
+pub unsafe extern "C" fn loadRom(array: *const u8, length: c_int) {
+    let array: &[u8] = slice::from_raw_parts(array, length as usize);
+    println!("rom: {:?}", array);
+}
 
 const FIFTEEN_PUZZLE: [u8; 384] = [
     0, 224, 108, 0, 76, 0, 110, 15, 162, 3, 96, 32, 240, 85, 0, 224, 34, 190, 34, 118, 34, 142, 34,

@@ -21,7 +21,7 @@
                         let reader = new FileReader();
                         reader.addEventListener("load", () => {
                             let bytes = new Uint8Array(reader.result);
-                            Module.ccall('loadRom', null, ['array', 'number'], [bytes, bytes.length])
+                            Module.ccall('loadRom', null, ['array', 'number'], [bytes, bytes.length]);
                         });
                         reader.readAsArrayBuffer(input.files[0]);
                     }

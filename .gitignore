@@ -1,1 +1,3 @@
 /target
+static/chip8.js
+static/chip8.wasm
